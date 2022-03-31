@@ -117,8 +117,8 @@ if __name__=='__main__':
         ret_val, frame = cap.read() # read frame from video
         t1 = time_synchronized()
         if ret_val:
-            # frame, bbox = tracker.update(frame, visual=True, logger_=False)  # feed one frame and get result
-            frame, bbox = tracker.update(frame, visual=False, logger_=False)  # feed one frame and get result
+            frame, bbox = tracker.update(frame, visual=True, logger_=False)  # feed one frame and get result
+            # frame, bbox = tracker.update(frame, visual=False, logger_=False)  # feed one frame and get result
             vid_writer.write(frame)
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):

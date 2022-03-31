@@ -40,7 +40,7 @@ def vis_track(img, outputs):
     for i in range(len(outputs)):
         box = outputs[i]
         x0 = int(box[0])
-        y0 = int(box[1]) v
+        y0 = int(box[1])
         x1 = int(box[2])
         y1 = int(box[3])
         id = box[4]

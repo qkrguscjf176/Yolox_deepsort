@@ -94,8 +94,8 @@ if __name__=='__main__':
                 _,info = detector.inference(frame, visual=True)
             except:
                 pass
-            vid_writer.write(info['visual'])
-
+            # vid_writer.write(info['visual'])
+            vid_writer.write(frame)
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                 break

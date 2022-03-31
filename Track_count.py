@@ -7,6 +7,7 @@ import time
 from yolox.exp import get_exp
 import numpy as np
 from collections import deque
+from collections import Counter
 
 # importing Detector
 from yolox.data.datasets.coco_classes import COCO_CLASSES
@@ -19,55 +20,62 @@ from deep_sort.deep_sort import DeepSort
 # Importing Visuals
 from visuals import *
 
+from intersect_ import *
+
 # A Dictionary to keep data of tracking
 data_deque = {}
 
 class_names = COCO_CLASSES
 
+
+lines  = [
+    {'Title' : 'Line1', 'Cords' : [(580, 500), (100, 500)]},
+    {'Title' : 'Line2', 'Cords' : [(680, 500), (1070, 500)]}
+]
+
+object_counter = {
+    'Line1' : Counter(),
+    'Line2' : Counter()
+}
+
+
+
+
+#Draw the Lines
+def draw_lines(lines, img):
+    for line in lines:
+        img = cv2.line(img, line['Cords'][0], line['Cords'][1], (255,255,255), 3)
+    return img
+
+# Update the Counter
+def update_counter(centerpoints, obj_name):
+    for line in lines:
+        p1 = Point(*centerpoints[0])
+        q1 = Point(*centerpoints[1])
+        p2 = Point(*line['Cords'][0])
+        q2 = Point(*line['Cords'][1])
+        if doIntersect(p1, q1, p2, q2):
+            object_counter[line['Title']].update([obj_name])
+            return True
+    return False
+
+# Draw the Final Results
+def draw_results(img):
+    x = 100
+    y = 100
+    offset = 50
+    for line_name, line_counter in object_counter.items():
+        Text = line_name + " : " + ' '.join([f"{label}={count}" for label, count in line_counter.items()])
+        cv2.putText(img, Text, (x,y), 6, 1, (104, 52, 235), 3, cv2.LINE_AA)
+        y = y+offset
+    return img
+
+
+
 # Function to calculate delta time for FPS when using cuda
 def time_synchronized():
     torch.cuda.synchronize() if torch.cuda.is_available() else None
     return time.time()
-
-pts = {}
-
-def vis_track(img, outputs):
-
-    for key in list(pts):
-        if key not in outputs[:,-2]:
-            pts.pop(key)
-
-    for i in range(len(outputs)):
-        box = outputs[i]
-        x0 = int(box[0])
-        y0 = int(box[1]) v
-        x1 = int(box[2])
-        y1 = int(box[3])
-        id = box[4]
-        clsid = box[5]
-
-        if id not in pts:
-            pts[id] = deque(maxlen=64)
-
-        # pts = { '1' : deque(),'2' : deque()}
-
-        center = (int((x0+x1)/2) , int((y0+y1)/2))
-        pts[id].append(center)
-
-        # Drawing a circle
-        color = compute_color_for_labels(clsid)
-        thickness = 5
-        cv2.circle(img,  (center), 1, color, thickness)
-
-        # Draw motion path
-        for j in range(1, len(pts[id])):
-            if pts[id][j - 1] is None or pts[id][j] is None:
-                continue
-            thickness = int(np.sqrt(64 / float(j + 1)) * 3)
-            cv2.line(img,(pts[id][j-1]), (pts[id][j]),(color),thickness)
-
-    return img
-
 
 
 # Draw the boxes having tracking indentities 
@@ -91,6 +99,9 @@ def draw_boxes(img, bbox, object_id, identities=None, offset=(0, 0)):
         
         data_deque[id].appendleft(center) #appending left to speed up the check we will check the latest map
         UI_box(box, img, label=label + str(id), color=color, line_thickness=3, boundingbox=True)
+
+        if len(data_deque[id]) >=2:
+            update_counter(centerpoints = data_deque[id], obj_name = obj_name)
 
     return img
 
@@ -133,7 +144,6 @@ class Tracker():
                         identities =outputs[:, -2]
                         object_id =outputs[:, -1]
                         image = draw_boxes(image, bbox_xyxy, object_id,identities)
-                        image = vis_track(image, outputs)
             return image, outputs
 
 
@@ -150,7 +160,7 @@ if __name__=='__main__':
     length = int(cv2.VideoCapture.get(cap, property_id))
 
     vid_writer = cv2.VideoWriter(
-        f'trails_demo_{sys.argv[1]}', cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width), int(height))
+        f'count_demo_{sys.argv[1]}', cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width), int(height))
     ) # open one video
     frame_count = 0
     fps = 0.0
@@ -159,6 +169,8 @@ if __name__=='__main__':
         t1 = time_synchronized()
         if ret_val:
             frame, bbox = tracker.update(frame, visual=True, logger_=False)  # feed one frame and get result
+            frame = draw_lines(lines, img = frame)
+            frame = draw_results(img= frame)
             vid_writer.write(frame)
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):

@@ -85,4 +85,5 @@ app.layout = html.Div(style = {'padding-top':'10px'},
 
 # Run the app
 if __name__ == '__main__':
-    app.run_server(debug =True)
+    # app.run_server(debug =True)
+    app.run_server(port = 8050)
